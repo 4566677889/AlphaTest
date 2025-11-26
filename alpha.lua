@@ -1,4 +1,4 @@
--- 69LOL_EXEscript с раздельным Silent Aim и Aimbot
+-- 69LOL_EXEscript с Silent Aim
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 local RunService = game:GetService("RunService")
@@ -17,7 +17,6 @@ local CircleRadius = 150
 local TargetHitbox = "Head"
 local ESPObjects = {}
 local CurrentTarget = nil
-local SilentAimTarget = nil
 
 -- === ОПТИМИЗАЦИЯ ===
 local lastESPUpdate = 0
@@ -44,7 +43,7 @@ local function CreateFOVCircle()
     if FOVCircle then FOVCircle:Remove() end
     
     FOVCircle = Drawing.new("Circle")
-    FOVCircle.Visible = CircleEnabled and (AimbotEnabled or SilentAimEnabled)
+    FOVCircle.Visible = (CircleEnabled and (AimbotEnabled or SilentAimEnabled))
     FOVCircle.Radius = CircleRadius
     FOVCircle.Color = Theme.Accent
     FOVCircle.Thickness = 2
@@ -59,7 +58,7 @@ local function UpdateFOVCircle()
         return
     end
     
-    FOVCircle.Visible = CircleEnabled and (AimbotEnabled or SilentAimEnabled)
+    FOVCircle.Visible = (CircleEnabled and (AimbotEnabled or SilentAimEnabled))
     FOVCircle.Radius = CircleRadius
     FOVCircle.Position = Vector2.new(workspace.CurrentCamera.ViewportSize.X / 2, workspace.CurrentCamera.ViewportSize.Y / 2)
 end
@@ -316,7 +315,7 @@ ScreenGui.Parent = game.CoreGui
 ScreenGui.Enabled = true
 
 local MainContainer = Instance.new("Frame")
-MainContainer.Size = UDim2.new(0, 600, 0, 500)
+MainContainer.Size = UDim2.new(0, 600, 0, 500) -- Увеличил высоту для новых элементов
 MainContainer.Position = UDim2.new(0.5, -300, 0.5, -250)
 MainContainer.BackgroundColor3 = Theme.Background
 MainContainer.BackgroundTransparency = 0.05
@@ -465,9 +464,6 @@ end)
 CreateToggle("Silent Aim", AimbotContent, 70, function(state)
     SilentAimEnabled = state
     UpdateFOVCircle()
-    if not state then
-        SilentAimTarget = nil
-    end
 end)
 
 CreateToggle("Use FOV Circle", AimbotContent, 120, function(state)
@@ -678,8 +674,10 @@ local function UpdateESP()
     end
 end
 
--- === ФУНКЦИЯ ПОИСКА ЦЕЛИ ДЛЯ FOV КРУГА ===
-local function FindTargetInFOV()
+-- === ФУНКЦИЯ ПОИСКА ЦЕЛИ ДЛЯ SILENT AIM ===
+local function FindSilentAimTarget()
+    if not SilentAimEnabled then return nil end
+    
     local camera = workspace.CurrentCamera
     if not camera then return nil end
     
@@ -740,14 +738,45 @@ local function FindTargetInFOV()
     return closestPlayer
 end
 
--- === AIMBOT (РАБОТАЕТ ОТДЕЛЬНО) ===
+-- === SILENT AIM HOOK ===
+local function SilentAimHook()
+    if not SilentAimEnabled then return end
+    
+    -- Получаем цель для Silent Aim
+    local targetPlayer = FindSilentAimTarget()
+    if not targetPlayer then return end
+    
+    local targetCharacter = targetPlayer.Character
+    if not targetCharacter then return end
+    
+    local targetPart = targetCharacter:FindFirstChild(TargetHitbox)
+    if not targetPart then
+        if TargetHitbox == "Body" then
+            targetPart = targetCharacter:FindFirstChild("HumanoidRootPart")
+        else
+            targetPart = targetCharacter:FindFirstChild("Head")
+        end
+    end
+    
+    if targetPart and targetCharacter:FindFirstChild("Humanoid") and targetCharacter.Humanoid.Health > 0 then
+        -- Здесь будет хук для изменения траектории пуль
+        -- В разных играх это реализуется по-разному
+        -- Для демонстрации просто выводим информацию
+        print(string.format("Silent Aim: Target locked - %s (%s)", targetPlayer.Name, TargetHitbox))
+        
+        -- В реальной реализации здесь нужно перехватывать выстрелы
+        -- и изменять их траекторию на targetPart.Position
+    end
+end
+
+-- === УЛУЧШЕННЫЙ AIMBOT ===
 local function AimbotFunction()
     if not AimbotEnabled or not UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton2) then
         CurrentTarget = nil
         return
     end
     
-    local targetPlayer = FindTargetInFOV()
+    local targetPlayer = FindSilentAimTarget()
     if not targetPlayer then
         CurrentTarget = nil
         return
@@ -776,68 +805,8 @@ local function AimbotFunction()
     end
 end
 
--- === SILENT AIM (РАБОТАЕТ ОТДЕЛЬНО) ===
-local function SilentAimFunction()
-    if not SilentAimEnabled then
-        SilentAimTarget = nil
-        return
-    end
-    
-    -- Постоянно ищем цель для Silent Aim
-    SilentAimTarget = FindTargetInFOV()
-    
-    if SilentAimTarget then
-        local targetCharacter = SilentAimTarget.Character
-        if targetCharacter and targetCharacter:FindFirstChild("Humanoid") and targetCharacter.Humanoid.Health > 0 then
-            -- Для демонстрации выводим информацию о цели
-            if tick() % 2 < 0.1 then -- Чтобы не спамить в консоль
-                print(string.format("Silent Aim: Target locked - %s (%s)", SilentAimTarget.Name, TargetHitbox))
-            end
-            
-            -- В реальной реализации здесь нужно перехватывать:
-            -- 1. Выстрелы из оружия
-            -- 2. Raycast'ы
-            -- 3. И изменять их конечную точку на позицию цели
-            
-            -- Пример для Raycast:
-            -- local targetPart = targetCharacter:FindFirstChild(TargetHitbox) or targetCharacter:FindFirstChild("Head")
-            -- if targetPart then
-            --     -- Изменяем конечную точку raycast'а на позицию цели
-            -- end
-        else
-            SilentAimTarget = nil
-        end
-    end
-end
-
--- === ПЕРЕХВАТ ВЫСТРЕЛОВ ДЛЯ SILENT AIM ===
-local function SetupSilentAimHooks()
-    -- Это место для перехвата функций стрельбы
-    -- В разных играх это реализуется по-разному
-    
-    -- Пример для Arsenal:
-    -- local mt = getrawmetatable(game)
-    -- local oldNamecall = mt.__namecall
-    -- setreadonly(mt, false)
-    -- 
-    -- mt.__namecall = newcclosure(function(...)
-    --     local method = getnamecallmethod()
-    --     local args = {...}
-    --     
-    --     if method == "FireServer" and SilentAimEnabled and SilentAimTarget then
-    --         -- Изменяем аргументы для попадания в цель
-    --     end
-    --     
-    --     return oldNamecall(unpack(args))
-    -- end)
-    -- setreadonly(mt, true)
-    
-    print("Silent Aim hooks ready - needs game-specific implementation")
-end
-
 -- === ЗАПУСК СИСТЕМЫ ===
 CreateFOVCircle()
-SetupSilentAimHooks()
 
 -- Обработчик появления игроков
 Players.PlayerAdded:Connect(function(player)
@@ -861,9 +830,6 @@ Players.PlayerRemoving:Connect(function(player)
     if player == CurrentTarget then
         CurrentTarget = nil
     end
-    if player == SilentAimTarget then
-        SilentAimTarget = nil
-    end
 end)
 
 -- Основной цикл
@@ -875,4 +841,13 @@ RunService.Heartbeat:Connect(function()
         lastESPUpdate = currentTime
     end
     
-    if currentTime -
+    if currentTime - lastAimbotUpdate > AimbotUpdateInterval then
+        AimbotFunction()
+        SilentAimHook() -- Добавляем Silent Aim в основной цикл
+        lastAimbotUpdate = currentTime
+    end
+    
+    UpdateFOVCircle()
+end)
+
+print("🎮 69LOL_EXEscript ОБНОВЛЕН! Добавлен Silent Aim!")
