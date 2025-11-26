@@ -1,4 +1,4 @@
--- 69LOL_EXEscript с Silent Aim
+-- 69LOL_EXEscript Исправленная версия
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 local RunService = game:GetService("RunService")
@@ -11,7 +11,6 @@ local HPEnabled = false
 local TeamStopEnabled = true
 local DistEnabled = false
 local AimbotEnabled = false
-local SilentAimEnabled = false
 local CircleEnabled = true
 local CircleRadius = 150
 local TargetHitbox = "Head"
@@ -21,8 +20,8 @@ local CurrentTarget = nil
 -- === ОПТИМИЗАЦИЯ ===
 local lastESPUpdate = 0
 local lastAimbotUpdate = 0
-local ESPUpdateInterval = 0.1
-local AimbotUpdateInterval = 0.05
+local ESPUpdateInterval = 0.05
+local AimbotUpdateInterval = 0.03
 
 -- === ПЕРЕМЕННЫЕ ДЛЯ КРУГА ===
 local FOVCircle
@@ -43,7 +42,7 @@ local function CreateFOVCircle()
     if FOVCircle then FOVCircle:Remove() end
     
     FOVCircle = Drawing.new("Circle")
-    FOVCircle.Visible = (CircleEnabled and (AimbotEnabled or SilentAimEnabled))
+    FOVCircle.Visible = CircleEnabled
     FOVCircle.Radius = CircleRadius
     FOVCircle.Color = Theme.Accent
     FOVCircle.Thickness = 2
@@ -58,7 +57,7 @@ local function UpdateFOVCircle()
         return
     end
     
-    FOVCircle.Visible = (CircleEnabled and (AimbotEnabled or SilentAimEnabled))
+    FOVCircle.Visible = CircleEnabled
     FOVCircle.Radius = CircleRadius
     FOVCircle.Position = Vector2.new(workspace.CurrentCamera.ViewportSize.X / 2, workspace.CurrentCamera.ViewportSize.Y / 2)
 end
@@ -315,8 +314,8 @@ ScreenGui.Parent = game.CoreGui
 ScreenGui.Enabled = true
 
 local MainContainer = Instance.new("Frame")
-MainContainer.Size = UDim2.new(0, 600, 0, 500) -- Увеличил высоту для новых элементов
-MainContainer.Position = UDim2.new(0.5, -300, 0.5, -250)
+MainContainer.Size = UDim2.new(0, 600, 0, 450)
+MainContainer.Position = UDim2.new(0.5, -300, 0.5, -225)
 MainContainer.BackgroundColor3 = Theme.Background
 MainContainer.BackgroundTransparency = 0.05
 MainContainer.BorderSizePixel = 0
@@ -435,9 +434,235 @@ AimbotContent.BackgroundTransparency = 1
 AimbotContent.Visible = false
 AimbotContent.Parent = ContentArea
 
+-- === ФИКС: УЛУЧШЕННЫЙ ESP С МГНОВЕННЫМ ОТОБРАЖЕНИЕМ ===
+local function CreateESP(player)
+    if ESPObjects[player] then 
+        if ESPObjects[player].Highlight and ESPObjects[player].Highlight.Parent then
+            return
+        else
+            ESPObjects[player] = nil
+        end
+    end
+    
+    local character = player.Character
+    if not character then return end
+    
+    local humanoid = character:WaitForChild("Humanoid", 2)
+    local head = character:WaitForChild("Head", 2)
+    
+    if not humanoid or not head then return end
+    
+    -- ФИКС: Убедимся, что старые ESP удалены
+    if character:FindFirstChild("ESP_" .. player.Name) then
+        character["ESP_" .. player.Name]:Destroy()
+    end
+    if character:FindFirstChild("INFO_" .. player.Name) then
+        character["INFO_" .. player.Name]:Destroy()
+    end
+    
+    -- Создаем Highlight (без черного фона)
+    local highlight = Instance.new("Highlight")
+    highlight.Name = "ESP_" .. player.Name
+    highlight.Adornee = character
+    highlight.FillColor = Color3.fromRGB(255, 50, 50)
+    highlight.FillTransparency = 0.7
+    highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+    highlight.OutlineTransparency = 0
+    highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+    highlight.Parent = character
+    
+    -- Создаем Billboard для информации (без черного фона)
+    local infoBillboard = Instance.new("BillboardGui")
+    infoBillboard.Name = "INFO_" .. player.Name
+    infoBillboard.Size = UDim2.new(0, 200, 0, 80)
+    infoBillboard.StudsOffset = Vector3.new(0, 4, 0)
+    infoBillboard.Adornee = head
+    infoBillboard.AlwaysOnTop = true
+    infoBillboard.MaxDistance = 1000
+    infoBillboard.Parent = character
+    
+    -- Текст с именем (без фона)
+    local nameText = Instance.new("TextLabel")
+    nameText.Text = player.Name
+    nameText.Size = UDim2.new(1, 0, 0.33, 0)
+    nameText.Position = UDim2.new(0, 0, 0, 0)
+    nameText.BackgroundTransparency = 1
+    nameText.TextColor3 = Color3.fromRGB(255, 255, 255)
+    nameText.TextSize = 14
+    nameText.Font = Enum.Font.GothamBold
+    nameText.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+    nameText.TextStrokeTransparency = 0.3
+    nameText.Parent = infoBillboard
+    
+    -- Текст с HP (без фона)
+    local hpText = Instance.new("TextLabel")
+    hpText.Text = "HP: 100"
+    hpText.Size = UDim2.new(1, 0, 0.33, 0)
+    hpText.Position = UDim2.new(0, 0, 0.33, 0)
+    hpText.BackgroundTransparency = 1
+    hpText.TextColor3 = Color3.fromRGB(255, 255, 255)
+    hpText.TextSize = 12
+    hpText.Font = Enum.Font.Gotham
+    hpText.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+    hpText.TextStrokeTransparency = 0.3
+    hpText.Parent = infoBillboard
+    
+    -- Текст с дистанцией (без фона)
+    local distText = Instance.new("TextLabel")
+    distText.Text = "Dist: 0m"
+    distText.Size = UDim2.new(1, 0, 0.33, 0)
+    distText.Position = UDim2.new(0, 0, 0.66, 0)
+    distText.BackgroundTransparency = 1
+    distText.TextColor3 = Color3.fromRGB(255, 255, 255)
+    distText.TextSize = 12
+    distText.Font = Enum.Font.Gotham
+    distText.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+    distText.TextStrokeTransparency = 0.3
+    distText.Parent = infoBillboard
+    
+    ESPObjects[player] = {
+        Highlight = highlight,
+        InfoBillboard = infoBillboard,
+        NameText = nameText,
+        HPText = hpText,
+        DistText = distText,
+        Character = character
+    }
+end
+
+local function RemoveESP(player)
+    if ESPObjects[player] then
+        if ESPObjects[player].Highlight then
+            ESPObjects[player].Highlight:Destroy()
+        end
+        if ESPObjects[player].InfoBillboard then
+            ESPObjects[player].InfoBillboard:Destroy()
+        end
+        ESPObjects[player] = nil
+    end
+end
+
+-- === ФИКС: УЛУЧШЕННОЕ ОБНОВЛЕНИЕ ESP ===
+local function UpdateESP()
+    if not ESPEnabled then return end
+    
+    for _, player in pairs(Players:GetPlayers()) do
+        if player == LocalPlayer then continue end
+        
+        local character = player.Character
+        if character and character:FindFirstChild("Humanoid") and character:FindFirstChild("Head") then
+            local humanoid = character.Humanoid
+            
+            if humanoid.Health <= 0 then
+                RemoveESP(player)
+                continue
+            end
+            
+            -- ФИКС: Правильная проверка команды
+            local shouldShow = true
+            if TeamStopEnabled then
+                if player.Team and LocalPlayer.Team and player.Team == LocalPlayer.Team then
+                    shouldShow = false
+                end
+            end
+            
+            if not shouldShow then
+                RemoveESP(player)
+                continue
+            end
+            
+            -- ФИКС: Создаем ESP если его нет
+            if not ESPObjects[player] then
+                CreateESP(player)
+            end
+            
+            if ESPObjects[player] then
+                local esp = ESPObjects[player]
+                
+                -- ФИКС: Проверяем целостность ESP
+                if not esp.Highlight or not esp.Highlight.Parent or not esp.InfoBillboard or not esp.InfoBillboard.Parent then
+                    CreateESP(player)
+                    continue
+                end
+                
+                esp.NameText.Text = player.Name
+                
+                if HPEnabled then
+                    esp.HPText.Text = "HP: " .. math.floor(humanoid.Health)
+                    esp.HPText.Visible = true
+                    if humanoid.Health < 30 then
+                        esp.HPText.TextColor3 = Color3.fromRGB(255, 50, 50)
+                    else
+                        esp.HPText.TextColor3 = Color3.fromRGB(50, 255, 50)
+                    end
+                else
+                    esp.HPText.Visible = false
+                end
+                
+                if DistEnabled then
+                    local localChar = LocalPlayer.Character
+                    if localChar and localChar:FindFirstChild("Head") then
+                        local distance = (character.Head.Position - localChar.Head.Position).Magnitude
+                        esp.DistText.Text = "Dist: " .. math.floor(distance) .. "m"
+                        esp.DistText.Visible = true
+                    end
+                else
+                    esp.DistText.Visible = false
+                end
+                
+                -- ФИКС: Цвета в зависимости от команды
+                if player.Team and LocalPlayer.Team and player.Team == LocalPlayer.Team then
+                    esp.Highlight.FillColor = Color3.fromRGB(0, 100, 255)
+                    esp.NameText.TextColor3 = Color3.fromRGB(100, 150, 255)
+                else
+                    esp.Highlight.FillColor = Color3.fromRGB(255, 50, 50)
+                    esp.NameText.TextColor3 = Color3.fromRGB(255, 100, 100)
+                end
+            end
+            
+        else
+            RemoveESP(player)
+        end
+    end
+end
+
+-- === ФИКС: ФУНКЦИЯ ДЛЯ ПЕРЕКЛЮЧЕНИЯ ESP ===
+local function ToggleESP(state)
+    ESPEnabled = state
+    if state then
+        -- ФИКС: Немедленно создаем ESP для всех игроков
+        for _, player in pairs(Players:GetPlayers()) do
+            if player ~= LocalPlayer and player.Character then
+                CreateESP(player)
+            end
+        end
+    else
+        -- ФИКС: Полностью очищаем ESP
+        for player, _ in pairs(ESPObjects) do
+            RemoveESP(player)
+        end
+    end
+end
+
+-- === ФИКС: ФУНКЦИЯ ДЛЯ ПЕРЕКЛЮЧЕНИЯ TEAM STOP ===
+local function ToggleTeamStop(state)
+    TeamStopEnabled = state
+    -- ФИКС: При изменении TeamStop немедленно обновляем ESP
+    if ESPEnabled then
+        for _, player in pairs(Players:GetPlayers()) do
+            if player ~= LocalPlayer then
+                RemoveESP(player)
+                if player.Character then
+                    CreateESP(player)
+                end
+            end
+        end
+    end
+end
+
 -- Переключатели ESP
 CreateToggle("Enable ESP", ESPContent, 20, function(state)
-    ESPEnabled = state
+    ToggleESP(state)
 end)
 
 CreateToggle("Show Health", ESPContent, 70, function(state)
@@ -445,7 +670,7 @@ CreateToggle("Show Health", ESPContent, 70, function(state)
 end)
 
 CreateToggle("Team Check", ESPContent, 120, function(state)
-    TeamStopEnabled = state
+    ToggleTeamStop(state)
 end)
 
 CreateToggle("Show Distance", ESPContent, 170, function(state)
@@ -455,29 +680,24 @@ end)
 -- Переключатели Aimbot
 CreateToggle("Enable Aimbot", AimbotContent, 20, function(state)
     AimbotEnabled = state
-    UpdateFOVCircle()
     if not state then
         CurrentTarget = nil
     end
 end)
 
-CreateToggle("Silent Aim", AimbotContent, 70, function(state)
-    SilentAimEnabled = state
-    UpdateFOVCircle()
-end)
-
-CreateToggle("Use FOV Circle", AimbotContent, 120, function(state)
+CreateToggle("Use FOV Circle", AimbotContent, 70, function(state)
     CircleEnabled = state
     UpdateFOVCircle()
 end)
 
 -- Выбор цели для аимбота
-CreateDropdown("Aimbot Target", AimbotContent, 170, {"Head", "Body"}, "Head", function(selection)
+local aimbotTargetDropdown = CreateDropdown("Aimbot Target", AimbotContent, 120, {"Head", "Body"}, "Head", function(selection)
     TargetHitbox = selection
+    print("Aimbot target changed to:", selection)
 end)
 
 -- Слайдер FOV круга
-CreateSlider("FOV Circle Size", AimbotContent, 240, 50, 400, 150, function(value)
+CreateSlider("FOV Circle Size", AimbotContent, 190, 50, 400, 150, function(value)
     CircleRadius = value
     UpdateFOVCircle()
 end)
@@ -516,179 +736,33 @@ UserInputService.InputBegan:Connect(function(input)
 end)
 
 -- Анимация появления
-MainContainer.Position = UDim2.new(0.5, -300, 0.5, -250)
+MainContainer.Position = UDim2.new(0.5, -300, 0.5, -225)
 
--- === ИСПРАВЛЕННЫЙ ESP ===
-local function CreateESP(player)
-    if ESPObjects[player] then return end
-    
-    local character = player.Character
-    if not character then return end
-    
-    if not character:FindFirstChild("Humanoid") or not character:FindFirstChild("Head") then
-        character:WaitForChild("Humanoid")
-        character:WaitForChild("Head")
-    end
-    
-    local highlight = Instance.new("Highlight")
-    highlight.Name = "ESP_" .. player.Name
-    highlight.Adornee = character
-    highlight.FillColor = Color3.fromRGB(255, 255, 255)
-    highlight.FillTransparency = 0.7
-    highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
-    highlight.OutlineTransparency = 0
-    highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-    highlight.Parent = character
-    
-    local infoBillboard = Instance.new("BillboardGui")
-    infoBillboard.Name = "INFO_" .. player.Name
-    infoBillboard.Size = UDim2.new(0, 200, 0, 80)
-    infoBillboard.StudsOffset = Vector3.new(0, 4, 0)
-    infoBillboard.Adornee = character:WaitForChild("Head")
-    infoBillboard.AlwaysOnTop = true
-    infoBillboard.MaxDistance = 1000
-    infoBillboard.Parent = character
-    
-    local nameText = Instance.new("TextLabel")
-    nameText.Text = player.Name
-    nameText.Size = UDim2.new(1, 0, 0.33, 0)
-    nameText.Position = UDim2.new(0, 0, 0, 0)
-    nameText.BackgroundTransparency = 1
-    nameText.TextColor3 = Color3.fromRGB(255, 255, 255)
-    nameText.TextSize = 14
-    nameText.Font = Enum.Font.GothamBold
-    nameText.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
-    nameText.TextStrokeTransparency = 0.8
-    nameText.Parent = infoBillboard
-    
-    local hpText = Instance.new("TextLabel")
-    hpText.Text = "HP: 100"
-    hpText.Size = UDim2.new(1, 0, 0.33, 0)
-    hpText.Position = UDim2.new(0, 0, 0.33, 0)
-    hpText.BackgroundTransparency = 1
-    hpText.TextColor3 = Color3.fromRGB(255, 255, 255)
-    hpText.TextSize = 12
-    hpText.Font = Enum.Font.Gotham
-    hpText.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
-    hpText.TextStrokeTransparency = 0.8
-    hpText.Parent = infoBillboard
-    
-    local distText = Instance.new("TextLabel")
-    distText.Text = "Dist: 0m"
-    distText.Size = UDim2.new(1, 0, 0.33, 0)
-    distText.Position = UDim2.new(0, 0, 0.66, 0)
-    distText.BackgroundTransparency = 1
-    distText.TextColor3 = Color3.fromRGB(255, 255, 255)
-    distText.TextSize = 12
-    distText.Font = Enum.Font.Gotham
-    distText.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
-    distText.TextStrokeTransparency = 0.8
-    distText.Parent = infoBillboard
-    
-    ESPObjects[player] = {
-        Highlight = highlight,
-        InfoBillboard = infoBillboard,
-        NameText = nameText,
-        HPText = hpText,
-        DistText = distText
-    }
-end
-
-local function RemoveESP(player)
-    if ESPObjects[player] then
-        if ESPObjects[player].Highlight then
-            ESPObjects[player].Highlight:Destroy()
-        end
-        if ESPObjects[player].InfoBillboard then
-            ESPObjects[player].InfoBillboard:Destroy()
-        end
-        ESPObjects[player] = nil
-    end
-end
-
-local function UpdateESP()
-    if not ESPEnabled then
-        for player, _ in pairs(ESPObjects) do
-            RemoveESP(player)
-        end
+-- === ИСПРАВЛЕННЫЙ AIMBOT С РАБОЧИМ ВЫБОРОМ ЦЕЛИ ===
+local function AimbotFunction()
+    if not AimbotEnabled or not UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton2) then
+        CurrentTarget = nil
         return
     end
     
-    for _, player in pairs(Players:GetPlayers()) do
-        if player == LocalPlayer then continue end
-        
-        local character = player.Character
-        if character and character:FindFirstChild("Humanoid") and character:FindFirstChild("Head") then
-            local humanoid = character.Humanoid
-            
-            if humanoid.Health <= 0 then
-                RemoveESP(player)
-                continue
-            end
-            
-            if TeamStopEnabled and player.Team and LocalPlayer.Team and player.Team == LocalPlayer.Team then
-                RemoveESP(player)
-                continue
-            end
-            
-            if not ESPObjects[player] then
-                CreateESP(player)
-            end
-            
-            if ESPObjects[player] then
-                local esp = ESPObjects[player]
-                esp.NameText.Text = player.Name
-                
-                if HPEnabled then
-                    esp.HPText.Text = "HP: " .. math.floor(humanoid.Health)
-                    esp.HPText.Visible = true
-                    if humanoid.Health < 30 then
-                        esp.HPText.TextColor3 = Color3.fromRGB(255, 50, 50)
-                    else
-                        esp.HPText.TextColor3 = Color3.fromRGB(50, 255, 50)
-                    end
-                else
-                    esp.HPText.Visible = false
-                end
-                
-                if DistEnabled then
-                    local distance = (character.Head.Position - LocalPlayer.Character.Head.Position).Magnitude
-                    esp.DistText.Text = "Dist: " .. math.floor(distance) .. "m"
-                    esp.DistText.Visible = true
-                else
-                    esp.DistText.Visible = false
-                end
-                
-                if player.Team and LocalPlayer.Team and player.Team == LocalPlayer.Team then
-                    esp.Highlight.FillColor = Color3.fromRGB(0, 100, 255)
-                    esp.NameText.TextColor3 = Color3.fromRGB(100, 150, 255)
-                else
-                    esp.Highlight.FillColor = Color3.fromRGB(255, 50, 50)
-                    esp.NameText.TextColor3 = Color3.fromRGB(255, 100, 100)
-                end
-            end
-            
-        else
-            RemoveESP(player)
-        end
-    end
-end
-
--- === ФУНКЦИЯ ПОИСКА ЦЕЛИ ДЛЯ SILENT AIM ===
-local function FindSilentAimTarget()
-    if not SilentAimEnabled then return nil end
+    local localPlayer = LocalPlayer
+    local localCharacter = localPlayer.Character
+    if not localCharacter then return end
+    
+    local localHead = localCharacter:FindFirstChild("Head")
+    if not localHead then return end
     
     local camera = workspace.CurrentCamera
-    if not camera then return nil end
+    if not camera then return end
     
     local mousePos = UserInputService:GetMouseLocation()
     local centerScreen = Vector2.new(camera.ViewportSize.X / 2, camera.ViewportSize.Y / 2)
     
     local closestPlayer = nil
-    local closestDistanceToCrosshair = math.huge
+    local closestDistance = math.huge
     
     for _, player in pairs(Players:GetPlayers()) do
-        if player == LocalPlayer then continue end
+        if player == localPlayer then continue end
         
         local character = player.Character
         if not character then continue end
@@ -698,28 +772,26 @@ local function FindSilentAimTarget()
         local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
         
         if humanoid and humanoid.Health > 0 and head and humanoidRootPart then
-            -- Team check
-            if TeamStopEnabled and player.Team and LocalPlayer.Team and player.Team == LocalPlayer.Team then
+            if TeamStopEnabled and player.Team and localPlayer.Team and player.Team == localPlayer.Team then
                 continue
             end
             
-            -- Получаем позицию цели на экране
-            local targetPart = character:FindFirstChild(TargetHitbox)
-            if not targetPart then
-                if TargetHitbox == "Body" then
-                    targetPart = humanoidRootPart
-                else
-                    targetPart = head
-                end
+            -- ВЫБОР ЧАСТИ ТЕЛА ДЛЯ ПРИЦЕЛИВАНИЯ
+            local targetPart
+            if TargetHitbox == "Body" then
+                targetPart = humanoidRootPart or head
+            else
+                targetPart = head
             end
+            
+            if not targetPart then continue end
             
             local targetScreenPos, targetVisible = camera:WorldToViewportPoint(targetPart.Position)
             
             if targetVisible then
                 local screenPos = Vector2.new(targetScreenPos.X, targetScreenPos.Y)
-                local distanceToCrosshair = (screenPos - mousePos).Magnitude
                 
-                -- Проверка FOV круга
+                -- ПРОВЕРКА FOV КРУГА (только если включен)
                 if CircleEnabled then
                     local distanceToCenter = (screenPos - centerScreen).Magnitude
                     if distanceToCenter > CircleRadius then
@@ -727,101 +799,59 @@ local function FindSilentAimTarget()
                     end
                 end
                 
-                if distanceToCrosshair < closestDistanceToCrosshair then
-                    closestDistanceToCrosshair = distanceToCrosshair
+                local distanceToMouse = (screenPos - mousePos).Magnitude
+                
+                if distanceToMouse < closestDistance then
+                    closestDistance = distanceToMouse
                     closestPlayer = player
                 end
             end
         end
     end
     
-    return closestPlayer
-end
-
--- === SILENT AIM HOOK ===
-local function SilentAimHook()
-    if not SilentAimEnabled then return end
-    
-    -- Получаем цель для Silent Aim
-    local targetPlayer = FindSilentAimTarget()
-    if not targetPlayer then return end
-    
-    local targetCharacter = targetPlayer.Character
-    if not targetCharacter then return end
-    
-    local targetPart = targetCharacter:FindFirstChild(TargetHitbox)
-    if not targetPart then
-        if TargetHitbox == "Body" then
-            targetPart = targetCharacter:FindFirstChild("HumanoidRootPart")
-        else
-            targetPart = targetCharacter:FindFirstChild("Head")
-        end
-    end
-    
-    if targetPart and targetCharacter:FindFirstChild("Humanoid") and targetCharacter.Humanoid.Health > 0 then
-        -- Здесь будет хук для изменения траектории пуль
-        -- В разных играх это реализуется по-разному
-        -- Для демонстрации просто выводим информацию
-        print(string.format("Silent Aim: Target locked - %s (%s)", targetPlayer.Name, TargetHitbox))
+    if closestPlayer then
+        CurrentTarget = closestPlayer
+        local targetCharacter = CurrentTarget.Character
         
-        -- В реальной реализации здесь нужно перехватывать выстрелы
-        -- и изменять их траекторию на targetPart.Position
-    end
-end
-
--- === УЛУЧШЕННЫЙ AIMBOT ===
-local function AimbotFunction()
-    if not AimbotEnabled or not UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton2) then
-        CurrentTarget = nil
-        return
-    end
-    
-    local targetPlayer = FindSilentAimTarget()
-    if not targetPlayer then
-        CurrentTarget = nil
-        return
-    end
-    
-    CurrentTarget = targetPlayer
-    local targetCharacter = CurrentTarget.Character
-    local targetPart = targetCharacter and targetCharacter:FindFirstChild(TargetHitbox)
-    
-    if not targetPart then
+        -- ВЫБОР ЧАСТИ ТЕЛА ДЛЯ НАВЕДЕНИЯ
+        local targetPart
         if TargetHitbox == "Body" then
-            targetPart = targetCharacter:FindFirstChild("HumanoidRootPart")
+            targetPart = targetCharacter:FindFirstChild("HumanoidRootPart") or targetCharacter:FindFirstChild("Head")
         else
             targetPart = targetCharacter:FindFirstChild("Head")
         end
-    end
-    
-    if targetPart and targetCharacter:FindFirstChild("Humanoid") and targetCharacter.Humanoid.Health > 0 then
-        local camera = workspace.CurrentCamera
-        if camera then
+        
+        if targetPart and targetCharacter:FindFirstChild("Humanoid") and targetCharacter.Humanoid.Health > 0 then
             local targetCFrame = CFrame.lookAt(camera.CFrame.Position, targetPart.Position)
-            camera.CFrame = camera.CFrame:Lerp(targetCFrame, 0.9)
+            camera.CFrame = camera.CFrame:Lerp(targetCFrame, 0.8)
+        else
+            CurrentTarget = nil
         end
     else
         CurrentTarget = nil
     end
 end
 
--- === ЗАПУСК СИСТЕМЫ ===
+-- === ФИКС: ЗАПУСК СИСТЕМЫ ===
 CreateFOVCircle()
 
 -- Обработчик появления игроков
 Players.PlayerAdded:Connect(function(player)
     player.CharacterAdded:Connect(function(character)
         if ESPEnabled then
-            wait(0.5)
+            wait(0.5) -- ФИКС: Увеличенная задержка для стабильности
             CreateESP(player)
         end
     end)
 end)
 
--- Обработчик для уже существующих игроков
+-- ФИКС: Сразу создаем ESP для всех существующих игроков
 for _, player in pairs(Players:GetPlayers()) do
-    if player ~= LocalPlayer and player.Character and ESPEnabled then
-        CreateESP(player)
+    if player ~= LocalPlayer and player.Character then
+        wait(0.1)
+        if ESPEnabled then
+            CreateESP(player)
+        end
     end
 end
 
@@ -843,11 +873,15 @@ RunService.Heartbeat:Connect(function()
     
     if currentTime - lastAimbotUpdate > AimbotUpdateInterval then
         AimbotFunction()
-        SilentAimHook() -- Добавляем Silent Aim в основной цикл
         lastAimbotUpdate = currentTime
     end
     
     UpdateFOVCircle()
 end)
 
-print("🎮 69LOL_EXEscript ОБНОВЛЕН! Добавлен Silent Aim!")
+print("🎮 69LOL_EXEscript FIXED VERSION!")
+print("✅ ESP сразу показывается на всех игроках")
+print("✅ Team Stop работает корректно")
+print("✅ Убран черный фон у ESP")
+print("✅ Все переключения работают мгновенно")
+print("✅ Меню создано и работает (F4 для скрытия/показа)")
