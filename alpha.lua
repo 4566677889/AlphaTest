@@ -1,11 +1,9 @@
--- 69LOL_EXEscript ПОЛНАЯ РАБОЧАЯ ВЕРСИЯ С ИСПРАВЛЕННЫМ COUNTER BLOX
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
 
--- === НАСТРОЙКИ ===
 local ESPEnabled = false
 local HPEnabled = false
 local TeamStopEnabled = false
@@ -17,7 +15,6 @@ local TargetHitbox = "Head"
 local ESPObjects = {}
 local CurrentTarget = nil
 
--- === НАСТРОЙКИ COUNTER BLOX ===
 local BhopEnabled = false
 local BhopSpeed = 25
 local NoRecoilEnabled = false
@@ -26,24 +23,20 @@ local HvHSpeed = 30
 local SilentAimEnabled = false
 local SilentAimFOV = 50
 
--- === ОПТИМИЗАЦИЯ ===
 local lastESPUpdate = 0
 local lastAimbotUpdate = 0
 local ESPUpdateInterval = 0.01
 local AimbotUpdateInterval = 0.03
 
--- === ПЕРЕМЕННЫЕ ДЛЯ КРУГА ===
 local FOVCircle
 local SilentAimCircle
 
--- === ПЕРЕМЕННЫЕ ДЛЯ COUNTER BLOX ===
 local BhopConnection
 local NoRecoilConnection
 local HvHConnection
 local SilentAimConnection
 local OriginalCameraType
 
--- === ЧЕРНО-КРАСНАЯ ТЕМА ===
 local Theme = {
     Background = Color3.fromRGB(15, 15, 20),
     Header = Color3.fromRGB(180, 30, 30),
@@ -54,7 +47,6 @@ local Theme = {
     Danger = Color3.fromRGB(220, 90, 90)
 }
 
--- === СОЗДАНИЕ FOV КРУГА ===
 local function CreateFOVCircle()
     if FOVCircle then FOVCircle:Remove() end
     
@@ -103,7 +95,6 @@ local function UpdateSilentAimCircle()
     SilentAimCircle.Position = Vector2.new(workspace.CurrentCamera.ViewportSize.X / 2, workspace.CurrentCamera.ViewportSize.Y / 2)
 end
 
--- === ПРОСТЫЕ ФУНКЦИИ ДЛЯ РАБОТЫ ===
 local function CreateToggle(name, parent, yPosition, default, callback)
     local toggleFrame = Instance.new("Frame")
     toggleFrame.Size = UDim2.new(1, -40, 0, 35)
@@ -147,7 +138,6 @@ local function CreateToggle(name, parent, yPosition, default, callback)
     
     local isEnabled = default
     
-    -- Устанавливаем начальное состояние
     if isEnabled then
         toggle.BackgroundColor3 = Theme.Success
         toggleCircle.Position = UDim2.new(0.7, -8, 0.5, -8)
@@ -260,7 +250,6 @@ local function CreateSlider(name, parent, yPosition, min, max, default, callback
     return sliderBackground
 end
 
--- Функция создания выпадающего списка
 local function CreateDropdown(name, parent, yPosition, options, default, callback)
     local dropdownFrame = Instance.new("Frame")
     dropdownFrame.Size = UDim2.new(1, -40, 0, 60)
@@ -357,7 +346,6 @@ local function CreateDropdown(name, parent, yPosition, options, default, callbac
     return dropdownButton
 end
 
--- === СОЗДАНИЕ GUI ===
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "69LOL_EXEscript"
 ScreenGui.Parent = game.CoreGui
@@ -382,7 +370,6 @@ ContainerShadow.Color = Color3.fromRGB(100, 20, 20)
 ContainerShadow.Thickness = 3
 ContainerShadow.Parent = MainContainer
 
--- Заголовок
 local Header = Instance.new("Frame")
 Header.Size = UDim2.new(1, 0, 0, 50)
 Header.Position = UDim2.new(0, 0, 0, 0)
@@ -420,7 +407,6 @@ local CloseCorner = Instance.new("UICorner")
 CloseCorner.CornerRadius = UDim.new(0, 15)
 CloseCorner.Parent = CloseButton
 
--- Боковая панель
 local Sidebar = Instance.new("Frame")
 Sidebar.Size = UDim2.new(0, 150, 1, -50)
 Sidebar.Position = UDim2.new(0, 0, 0, 50)
@@ -432,14 +418,12 @@ local SidebarCorner = Instance.new("UICorner")
 SidebarCorner.CornerRadius = UDim.new(0, 20)
 SidebarCorner.Parent = Sidebar
 
--- Контентная область
 local ContentArea = Instance.new("Frame")
 ContentArea.Size = UDim2.new(1, -150, 1, -50)
 ContentArea.Position = UDim2.new(0, 150, 0, 50)
 ContentArea.BackgroundTransparency = 1
 ContentArea.Parent = MainContainer
 
--- Создаем вкладки
 local ESPTab = Instance.new("TextButton")
 ESPTab.Text = "ESP"
 ESPTab.Size = UDim2.new(0.9, 0, 0, 45)
@@ -470,7 +454,6 @@ local AimbotTabCorner = Instance.new("UICorner")
 AimbotTabCorner.CornerRadius = UDim.new(0, 12)
 AimbotTabCorner.Parent = AimbotTab
 
--- НОВАЯ ВКЛАДКА COUNTER BLOX
 local CounterBloxTab = Instance.new("TextButton")
 CounterBloxTab.Text = "Counter Blox"
 CounterBloxTab.Size = UDim2.new(0.9, 0, 0, 45)
@@ -486,28 +469,24 @@ local CounterBloxTabCorner = Instance.new("UICorner")
 CounterBloxTabCorner.CornerRadius = UDim.new(0, 12)
 CounterBloxTabCorner.Parent = CounterBloxTab
 
--- Содержимое ESP
 local ESPContent = Instance.new("Frame")
 ESPContent.Size = UDim2.new(1, 0, 1, 0)
 ESPContent.BackgroundTransparency = 1
 ESPContent.Visible = true
 ESPContent.Parent = ContentArea
 
--- Содержимое Aimbot
 local AimbotContent = Instance.new("Frame")
 AimbotContent.Size = UDim2.new(1, 0, 1, 0)
 AimbotContent.BackgroundTransparency = 1
 AimbotContent.Visible = false
 AimbotContent.Parent = ContentArea
 
--- Содержимое Counter Blox
 local CounterBloxContent = Instance.new("Frame")
 CounterBloxContent.Size = UDim2.new(1, 0, 1, 0)
 CounterBloxContent.BackgroundTransparency = 1
 CounterBloxContent.Visible = false
 CounterBloxContent.Parent = ContentArea
 
--- === УЛУЧШЕННАЯ СИСТЕМА ESP (НЕ ТРОГАЕМ - РАБОТАЕТ ИДЕАЛЬНО) ===
 local function CreateESP(player)
     if ESPObjects[player] then 
         if ESPObjects[player].Highlight and ESPObjects[player].Highlight.Parent then
@@ -610,7 +589,6 @@ local function RemoveESP(player)
     end
 end
 
--- === УЛУЧШЕННАЯ ФУНКЦИЯ ОБНОВЛЕНИЯ ESP ===
 local function UpdateAllESP()
     if not ESPEnabled then return end
     
@@ -689,7 +667,6 @@ local function UpdateAllESP()
     end
 end
 
--- === АВТОМАТИЧЕСКОЕ ОБНОВЛЕНИЕ ПРИ ПОЯВЛЕНИИ ИГРОКОВ ===
 local function SetupPlayerESP(player)
     if player.Character and ESPEnabled then
         wait(0.1)
@@ -708,14 +685,12 @@ local function SetupPlayerESP(player)
     end)
 end
 
--- === ИНИЦИАЛИЗАЦИЯ ВСЕХ ИГРОКОВ ===
 for _, player in pairs(Players:GetPlayers()) do
     if player ~= LocalPlayer then
         SetupPlayerESP(player)
     end
 end
 
--- Обработчик новых игроков
 Players.PlayerAdded:Connect(function(player)
     SetupPlayerESP(player)
 end)
@@ -727,7 +702,6 @@ Players.PlayerRemoving:Connect(function(player)
     end
 end)
 
--- === ФУНКЦИИ ДЛЯ ПЕРЕКЛЮЧЕНИЯ ESP ===
 local function ToggleESP(state)
     ESPEnabled = state
     if state then
@@ -757,7 +731,6 @@ local function ToggleTeamStop(state)
     end
 end
 
--- === ИСПРАВЛЕННАЯ СИСТЕМА COUNTER BLOX ===
 local function ToggleBhop(state)
     BhopEnabled = state
     
@@ -781,13 +754,11 @@ local function ToggleBhop(state)
                                 UserInputService:IsKeyDown(Enum.KeyCode.S) or 
                                 UserInputService:IsKeyDown(Enum.KeyCode.D)
                 
-                -- Мгновенно останавливаем если не двигается
                 if not isMoving then
                     humanoidRootPart.Velocity = Vector3.new(0, humanoidRootPart.Velocity.Y, 0)
                     return
                 end
                 
-                -- ИСПРАВЛЕННОЕ направление движения
                 local moveDirection = Vector3.new(0, 0, 0)
                 
                 if UserInputService:IsKeyDown(Enum.KeyCode.W) then
@@ -803,11 +774,9 @@ local function ToggleBhop(state)
                     moveDirection = moveDirection + workspace.CurrentCamera.CFrame.RightVector * 1 -- Вправо
                 end
                 
-                -- Нормализуем направление
                 if moveDirection.Magnitude > 0 then
                     moveDirection = Vector3.new(moveDirection.X, 0, moveDirection.Z).Unit
                     
-                    -- Применяем скорость
                     humanoidRootPart.Velocity = Vector3.new(
                         moveDirection.X * BhopSpeed,
                         humanoidRootPart.Velocity.Y,
@@ -819,7 +788,6 @@ local function ToggleBhop(state)
     end
 end
 
--- ИСПРАВЛЕННЫЙ NO RECOIL (рабочий вариант)
 local function ToggleNoRecoil(state)
     NoRecoilEnabled = state
     
@@ -833,22 +801,18 @@ local function ToggleNoRecoil(state)
             local character = LocalPlayer.Character
             if not character then return end
             
-            -- Обходка для устранения отдачи через изменение свойств камеры
             local camera = workspace.CurrentCamera
             if camera then
-                -- Сбрасываем любые эффекты отдачи
                 camera.CFrame = CFrame.new(camera.CFrame.Position, camera.CFrame.Position + camera.CFrame.LookVector)
                 
-                -- Убираем тряску камеры
                 if camera:FindFirstChild("CameraShake") then
                     camera.CameraShake:Destroy()
                 end
             end
             
-            -- Обходка для оружия
             local tool = character:FindFirstChildOfClass("Tool")
             if tool then
-                -- Отключаем скрипты отдачи
+              
                 for _, v in pairs(tool:GetDescendants()) do
                     if v:IsA("Script") and (v.Name:lower():find("recoil") or v.Name:lower():find("kick")) then
                         v.Disabled = true
@@ -859,7 +823,6 @@ local function ToggleNoRecoil(state)
     end
 end
 
--- ИСПРАВЛЕННЫЙ HVH MODE
 local function ToggleHvH(state)
     HvHEnabled = state
     
@@ -885,21 +848,16 @@ local function ToggleHvH(state)
                 -- Устанавливаем камеру от третьего лица с прохождением сквозь стены
                 workspace.CurrentCamera.CameraType = Enum.CameraType.Scriptable
                 
-                -- Фиксированная позиция камеры за персонажем (проходит сквозь стены)
                 local cameraOffset = Vector3.new(0, 3, 8)
                 local characterPosition = humanoidRootPart.Position
                 local cameraPosition = characterPosition + cameraOffset
                 
-                -- Статичная камера без синхронизации с вращением модели
                 workspace.CurrentCamera.CFrame = CFrame.new(cameraPosition, characterPosition)
                 
-                -- Вращение только модели персонажа (быстрое и плавное)
                 humanoidRootPart.CFrame = humanoidRootPart.CFrame * CFrame.Angles(0, math.rad(HvHSpeed * 2), 0)
                 
-                -- Авто-джамп (левитация на месте)
                 humanoid.Jump = true
                 
-                -- Убираем замедление и фиксируем скорость
                 humanoid.WalkSpeed = 16
                 humanoidRootPart.Velocity = Vector3.new(0, 0, 0)
                 humanoidRootPart.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
@@ -908,7 +866,6 @@ local function ToggleHvH(state)
     end
 end
 
--- РАБОЧИЙ SILENT AIM
 local function ToggleSilentAim(state)
     SilentAimEnabled = state
     
@@ -953,7 +910,6 @@ local function ToggleSilentAim(state)
                 end
             end
             
-            -- Обходка для Silent Aim через изменение направления выстрелов
             if closestPlayer then
                 local targetCharacter = closestPlayer.Character
                 local targetHead = targetCharacter and targetCharacter:FindFirstChild("Head")
@@ -1251,3 +1207,4 @@ print("✅ Silent Aim: автоматическое попадание по вр
 print("✅ Анти-детект: защита от обнаружения")
 print("✅ Все системы работают независимо")
 print("✅ Меню создано и работает (F4 для скрытия/показа)")
+
